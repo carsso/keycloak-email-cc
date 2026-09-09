@@ -1,4 +1,4 @@
-package sh.germain.keycloak.email.cc;
+package com.carsso.keycloak.email.cc;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;

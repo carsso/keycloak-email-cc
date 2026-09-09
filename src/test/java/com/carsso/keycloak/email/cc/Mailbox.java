@@ -1,4 +1,4 @@
-package sh.germain.keycloak.email.cc;
+package com.carsso.keycloak.email.cc;
 
 import java.io.IOException;
 import java.net.URI;

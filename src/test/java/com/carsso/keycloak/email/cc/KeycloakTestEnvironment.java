@@ -1,4 +1,4 @@
-package sh.germain.keycloak.email.cc;
+package com.carsso.keycloak.email.cc;
 
 import java.nio.file.Files;
 import java.nio.file.Path;

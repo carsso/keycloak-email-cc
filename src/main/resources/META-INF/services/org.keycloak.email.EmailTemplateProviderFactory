@@ -1,1 +1,1 @@
-sh.germain.keycloak.email.cc.PasswordResetCcEmailTemplateProviderFactory
+com.carsso.keycloak.email.cc.PasswordResetCcEmailTemplateProviderFactory
