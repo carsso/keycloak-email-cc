@@ -2,113 +2,117 @@
 
 [![CI](https://github.com/carsso/keycloak-email-cc/actions/workflows/ci.yml/badge.svg)](https://github.com/carsso/keycloak-email-cc/actions/workflows/ci.yml)
 
-Envoie une copie de l'email « mot de passe oublié » de Keycloak à une adresse stockée
-dans un attribut de l'utilisateur.
+Sends a copy of Keycloak's "forgot password" email to an address held in a user
+attribute.
 
-L'utilisateur reçoit son mail habituel ; un second mail, strictement identique (même
-sujet, même corps, même lien d'action), part vers la ou les adresses de copie.
+The user still receives their usual mail; a second, strictly identical mail (same
+subject, same body, same action link) goes out to the copy address(es).
 
-Seul `sendPasswordReset` est concerné : vérification d'email, invitations, execute-actions
-et compagnie ne sont pas copiés.
+Only `sendPasswordReset` is affected: email verification, invitations, execute-actions
+and friends are not copied.
 
 ## Build
 
 ```
 mvn package
 cp target/keycloak-password-reset-cc-1.0.0.jar /opt/keycloak/providers/
-/opt/keycloak/bin/kc.sh build     # inutile en start-dev
+/opt/keycloak/bin/kc.sh build     # not needed with start-dev
 ```
 
-Testé de bout en bout sur Keycloak 26.7.3 et sur l'image `nightly` (999.0.0-SNAPSHOT,
-future 27) — le même jar, compilé contre 26.7.3, fonctionne sur les deux sans recompilation.
-`FreeMarkerEmailTemplateProvider` est d'ailleurs identique octet pour octet entre 26.7.3 et
-`main`, et le point d'accroche utilisé existe depuis 26.0.
+Tested end to end on Keycloak 26.7.3 and on the `nightly` image (999.0.0-SNAPSHOT, the
+future 27) — the same jar, compiled against 26.7.3, works on both without recompiling.
+`FreeMarkerEmailTemplateProvider` is in fact byte-for-byte identical between 26.7.3 and
+`main`, and the hook it relies on has existed since 26.0.
 
-Réserve : `emailTemplate` est un SPI interne (Keycloak logue un `KC-SERVICES0047` à ce sujet).
-Rien ne garantit contractuellement sa stabilité ; il faut donc refaire tourner le banc d'essai
-ci-dessous à chaque montée de version majeure.
+Caveat: `emailTemplate` is an internal SPI (Keycloak logs a `KC-SERVICES0047` about it).
+Nothing contractually guarantees its stability, so the test suite below should be re-run
+on every major version bump.
 
-Le provider s'enregistre sous l'id `freemarker` avec un `order()` supérieur : il remplace
-donc le provider d'emails par défaut sans aucune option de sélection à poser.
+The provider registers under the id `freemarker` with a higher `order()`: it therefore
+replaces the default email provider with no option to set.
 
-## Choisir l'attribut
+## Choosing the attribute
 
-Par défaut : `cc_email`.
+Default: `cc_email`.
 
-Globalement, dans `keycloak.conf` ou en ligne de commande :
+Globally, in `keycloak.conf` or on the command line:
 
 ```
 spi-email-template--freemarker--cc-attribute=copyTo
 ```
 
-En variable d'environnement (Keycloak ≥ 26.2, format à double tiret) :
+As an environment variable (Keycloak ≥ 26.2, double-dash spelling):
 
 ```
 KC_SPI_EMAIL_TEMPLATE__FREEMARKER__CC_ATTRIBUTE=copyTo
 ```
 
-Sur Keycloak 26.0 / 26.1, l'ancien format à simple tiret s'applique :
+On Keycloak 26.0 / 26.1, the older single-dash spelling applies:
 `--spi-email-template-freemarker-cc-attribute=copyTo`.
 
-Par realm, un attribut de realm `passwordResetCcAttribute` prend le pas sur la valeur
-globale :
+Per realm, a realm attribute `passwordResetCcAttribute` takes precedence over the global
+value:
 
 ```
-kcadm.sh update realms/monrealm -s 'attributes.passwordResetCcAttribute=boss'
+kcadm.sh update realms/myrealm -s 'attributes.passwordResetCcAttribute=boss'
 ```
 
-## Rendre le champ éditable dans la console admin
+## Making the field editable in the admin console
 
-Depuis Keycloak 24, un attribut doit être déclaré dans le *User Profile* pour être
-visible. Realm settings → User profile → Create attribute, ou via l'API :
+Since Keycloak 24, an attribute must be declared in the *User Profile* to be visible.
+Realm settings → User profile → Create attribute, or through the API:
 
 ```json
 {
   "name": "copyTo",
-  "displayName": "Adresse en copie du reset de mot de passe",
+  "displayName": "Password reset copy address",
   "multivalued": false,
   "permissions": { "view": ["admin"], "edit": ["admin"] },
   "validations": { "email": {} }
 }
 ```
 
-## Détails
+## Details
 
-- Plusieurs adresses possibles : attribut multivalué, ou valeurs séparées par une
-  virgule, un point-virgule ou un espace.
-- Une adresse de copie égale à l'email de l'utilisateur est ignorée (pas de doublon).
-- Un échec d'envoi de la copie est journalisé en WARN et ne casse pas le flux de reset :
-  l'utilisateur a déjà reçu son mail.
+- Several addresses are supported: a multivalued attribute, or values separated by a
+  comma, a semicolon or a space.
+- A copy address equal to the user's own email is skipped (no duplicate).
+- A failure to send the copy is logged at WARN and does not break the reset flow: the
+  user has already received their mail.
 
 ## Tests
 
 ```
-mvn test      # tests unitaires seuls
-mvn verify    # + tests d'intégration (nécessite Docker)
+mvn test      # unit tests only
+mvn verify    # + integration tests (requires Docker)
 ```
 
-**Unitaires** — le provider est exercé avec un `EmailSenderProvider` mocké : découpage et
-nettoyage des adresses, exclusion de l'adresse de l'utilisateur, dédoublonnage, résolution du
-nom d'attribut et de son override par realm, isolation des échecs d'envoi de copie, et
-vérification qu'aucun autre type d'email n'est copié.
+**Unit** — the provider is exercised against a mocked `EmailSenderProvider`: splitting and
+cleaning up addresses, excluding the user's own address, deduplication, resolving the
+attribute name and its per-realm override, isolating copy send failures, and checking that
+no other email type gets copied.
 
-**Intégration** — Testcontainers démarre un vrai Keycloak avec le jar fraîchement construit
-et un Mailpit ; les tests parcourent les véritables pages « Mot de passe oublié ? » et
-vérifient ce qui est réellement arrivé sur le serveur SMTP. Pour viser une autre version :
+**Integration** — Testcontainers starts a real Keycloak with the freshly built jar and a
+Mailpit; the tests walk the actual "Forgot password?" pages and check what really landed on
+the SMTP server. To target another version:
 
 ```
 mvn verify -Dkeycloak.test.image=quay.io/keycloak/keycloak:26.0.8
 ```
 
-La CI rejoue cette suite sur 26.0.8, 26.2.5, 26.7.3 et `nightly`. Le job `nightly` a le droit
-d'échouer : c'est une cible mouvante, et `emailTemplate` reste un SPI interne.
+CI replays this suite on 26.0.8, 26.2.5, 26.7.3 and `nightly`. The `nightly` job is allowed
+to fail: it is a moving target, and `emailTemplate` remains an internal SPI.
 
-## Essayer à la main
+## Trying it by hand
 
 ```
 mvn package && docker compose up -d
 ```
 
-Puis créer un realm avec `resetPasswordAllowed`, un SMTP pointant sur `mailpit:1025`,
-un utilisateur avec l'attribut `copyTo`, et déclencher « Mot de passe oublié ? ».
-Les deux mails apparaissent sur http://localhost:18025.
+Then create a realm with `resetPasswordAllowed`, an SMTP server pointing at `mailpit:1025`,
+a user with the `copyTo` attribute, and trigger "Forgot password?". Both mails show up on
+http://localhost:18025.
+
+## License
+
+[MIT](LICENSE)

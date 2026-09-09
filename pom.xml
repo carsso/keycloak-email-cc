@@ -11,6 +11,15 @@
 
     <name>Keycloak password reset Cc</name>
     <description>Sends a copy of the password reset email to an address held in a user attribute</description>
+    <url>https://github.com/carsso/keycloak-email-cc</url>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

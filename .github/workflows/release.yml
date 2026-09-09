@@ -1,29 +1,98 @@
 name: Release
 
+# Releasing is driven by the version in pom.xml: bump it, merge to main, and once
+# CI is green the tag and the release follow.
+#
+# Chained on CI rather than on the push so nothing is released without the whole
+# Keycloak matrix having passed on that exact commit. workflow_run carries no path
+# filter, so this fires on every green CI on main; the version job is the guard --
+# it releases only a version that has no tag yet, which makes both ordinary
+# commits and dependency bumps a no-op.
 on:
-  push:
-    tags: ['v*']
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  release:
+  version:
+    name: Check the version
     runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    outputs:
+      version: ${{ steps.pom.outputs.version }}
+      release: ${{ steps.tag.outputs.release }}
     steps:
       - uses: actions/checkout@v7
-
-      - uses: actions/setup-java@v6
         with:
-          distribution: temurin
-          java-version: '21'
-          cache: maven
+          # workflow_run checks out the default branch head by default. Read, tag
+          # and release the commit CI actually tested instead.
+          ref: ${{ github.event.workflow_run.head_sha }}
+          # Tags are needed to tell an already released version from a new one.
+          fetch-depth: 0
 
-      - name: Build and test
-        run: mvn -B verify
+      - name: Read the version from pom.xml
+        id: pom
+        run: |
+          version=$(python3 -c "import xml.etree.ElementTree as ET; print(ET.parse('pom.xml').getroot().find('{http://maven.apache.org/POM/4.0.0}version').text.strip())")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "pom.xml version: $version"
 
+      - name: Release only a new, non-snapshot version
+        id: tag
+        env:
+          VERSION: ${{ steps.pom.outputs.version }}
+        run: |
+          if [ -z "$VERSION" ]; then
+            echo "::error::no version found in pom.xml"
+            exit 1
+          fi
+          case "$VERSION" in
+            *-SNAPSHOT)
+              echo "release=false" >> "$GITHUB_OUTPUT"
+              echo "::notice::$VERSION is a snapshot, not releasing"
+              exit 0
+              ;;
+          esac
+          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::v$VERSION is already tagged, nothing to release"
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::releasing v$VERSION"
+          fi
+
+  release:
+    name: Release v${{ needs.version.outputs.version }}
+    runs-on: ubuntu-latest
+    needs: version
+    if: needs.version.outputs.release == 'true'
+    permissions:
+      contents: write
+      # Reading the jar back from the CI run.
+      actions: read
+    steps:
+      # No rebuild: the jar published is the very one the matrix ran against.
+      - name: Download the jar CI built and tested
+        uses: actions/download-artifact@v7
+        with:
+          name: provider-jar
+          path: dist
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Creates the tag on that commit as a side effect of creating the release.
       - name: Publish the jar on the release
         uses: softprops/action-gh-release@v3
         with:
-          files: target/*.jar
+          tag_name: v${{ needs.version.outputs.version }}
+          target_commitish: ${{ github.event.workflow_run.head_sha }}
+          files: dist/*.jar
           generate_release_notes: true

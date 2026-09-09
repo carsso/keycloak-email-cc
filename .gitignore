@@ -1,1 +1,3 @@
 target/
+docker-compose.local.yml
+local-setup.sh
