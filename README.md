@@ -1,6 +1,6 @@
 # keycloak-password-reset-cc
 
-[![CI](https://github.com/carsso/keycloak-password-reset-cc/actions/workflows/ci.yml/badge.svg)](https://github.com/carsso/keycloak-password-reset-cc/actions/workflows/ci.yml)
+[![CI](https://github.com/carsso/keycloak-email-cc/actions/workflows/ci.yml/badge.svg)](https://github.com/carsso/keycloak-email-cc/actions/workflows/ci.yml)
 
 Envoie une copie de l'email « mot de passe oublié » de Keycloak à une adresse stockée
 dans un attribut de l'utilisateur.
