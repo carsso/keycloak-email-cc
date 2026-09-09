@@ -6,6 +6,14 @@ on:
   pull_request:
   workflow_dispatch:
 
+# A branch pushed again has superseded its own run. The event is part of the
+# group so a push on main and a pull request never cancel each other: a
+# cancelled run keeps the name of the required check, and the ruleset would then
+# see a cancelled CI next to the successful one and refuse the merge.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -69,3 +77,20 @@ jobs:
         with:
           name: failsafe-reports-${{ matrix.keycloak }}
           path: target/failsafe-reports/
+
+  # Single required check for the branch ruleset. The matrix job names carry the
+  # Keycloak version, so requiring them by name would have to be updated in the
+  # repository settings every time a version is added or dropped -- and a
+  # required check that never reports blocks the merge forever. This one name is
+  # stable whatever the matrix does.
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    needs: [build, integration]
+    if: always()
+    steps:
+      - name: Fail unless every job succeeded
+        run: |
+          echo "build=${{ needs.build.result }} integration=${{ needs.integration.result }}"
+          [ "${{ needs.build.result }}" = "success" ] || exit 1
+          [ "${{ needs.integration.result }}" = "success" ] || exit 1
