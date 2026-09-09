@@ -1,0 +1,21 @@
+# Local test harness: Keycloak + Mailpit (web UI on http://localhost:18025).
+services:
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "18025:8025"
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.3
+    depends_on:
+      - mailpit
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_SPI_EMAIL_TEMPLATE__FREEMARKER__CC_ATTRIBUTE: copyTo
+    volumes:
+      - ./target/keycloak-password-reset-cc-1.0.0.jar:/opt/keycloak/providers/keycloak-password-reset-cc.jar:ro
+    command:
+      - start-dev
+    ports:
+      - "18080:8080"
