@@ -97,7 +97,7 @@
                 <!-- Integration tests need the packaged jar, so they run after package. -->
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
-                <version>3.5.2</version>
+                <version>3.6.0</version>
                 <configuration>
                     <systemPropertyVariables>
                         <keycloak.test.image>${keycloak.test.image}</keycloak.test.image>
