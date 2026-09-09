@@ -3,8 +3,7 @@ package sh.germain.keycloak.email.cc;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.Objects;
 
 import org.jboss.logging.Logger;
 import org.keycloak.email.EmailException;
@@ -68,7 +67,7 @@ public class PasswordResetCcEmailTemplateProvider extends FreeMarkerEmailTemplat
         }
     }
 
-    private List<String> copyRecipients() {
+    List<String> copyRecipients() {
         if (user == null) {
             return List.of();
         }
@@ -76,16 +75,16 @@ public class PasswordResetCcEmailTemplateProvider extends FreeMarkerEmailTemplat
         String userEmail = user.getEmail();
 
         return user.getAttributeStream(attributeName)
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .flatMap(value -> Arrays.stream(value.split("[,;\\s]+")))
                 .map(String::trim)
                 .filter(candidate -> candidate.indexOf('@') > 0)
                 .filter(candidate -> !candidate.equalsIgnoreCase(userEmail))
                 .distinct()
-                .collect(Collectors.toList());
+                .toList();
     }
 
-    private String attributeName() {
+    String attributeName() {
         String override = realm == null ? null : realm.getAttribute(REALM_ATTRIBUTE);
         return override == null || override.isBlank() ? defaultAttributeName : override.trim();
     }

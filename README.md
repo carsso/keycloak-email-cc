@@ -1,5 +1,7 @@
 # keycloak-password-reset-cc
 
+[![CI](https://github.com/carsso/keycloak-password-reset-cc/actions/workflows/ci.yml/badge.svg)](https://github.com/carsso/keycloak-password-reset-cc/actions/workflows/ci.yml)
+
 Envoie une copie de l'email « mot de passe oublié » de Keycloak à une adresse stockée
 dans un attribut de l'utilisateur.
 
@@ -78,7 +80,30 @@ visible. Realm settings → User profile → Create attribute, ou via l'API :
 - Un échec d'envoi de la copie est journalisé en WARN et ne casse pas le flux de reset :
   l'utilisateur a déjà reçu son mail.
 
-## Essayer en local
+## Tests
+
+```
+mvn test      # tests unitaires seuls
+mvn verify    # + tests d'intégration (nécessite Docker)
+```
+
+**Unitaires** — le provider est exercé avec un `EmailSenderProvider` mocké : découpage et
+nettoyage des adresses, exclusion de l'adresse de l'utilisateur, dédoublonnage, résolution du
+nom d'attribut et de son override par realm, isolation des échecs d'envoi de copie, et
+vérification qu'aucun autre type d'email n'est copié.
+
+**Intégration** — Testcontainers démarre un vrai Keycloak avec le jar fraîchement construit
+et un Mailpit ; les tests parcourent les véritables pages « Mot de passe oublié ? » et
+vérifient ce qui est réellement arrivé sur le serveur SMTP. Pour viser une autre version :
+
+```
+mvn verify -Dkeycloak.test.image=quay.io/keycloak/keycloak:26.0.8
+```
+
+La CI rejoue cette suite sur 26.0.8, 26.2.5, 26.7.3 et `nightly`. Le job `nightly` a le droit
+d'échouer : c'est une cible mouvante, et `emailTemplate` reste un SPI interne.
+
+## Essayer à la main
 
 ```
 mvn package && docker compose up -d
