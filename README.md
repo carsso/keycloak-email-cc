@@ -17,7 +17,14 @@ cp target/keycloak-password-reset-cc-1.0.0.jar /opt/keycloak/providers/
 /opt/keycloak/bin/kc.sh build     # inutile en start-dev
 ```
 
-Testé sur Keycloak 26.7.3. Le point d'accroche utilisé est identique de 26.0 à 26.7.
+Testé de bout en bout sur Keycloak 26.7.3 et sur l'image `nightly` (999.0.0-SNAPSHOT,
+future 27) — le même jar, compilé contre 26.7.3, fonctionne sur les deux sans recompilation.
+`FreeMarkerEmailTemplateProvider` est d'ailleurs identique octet pour octet entre 26.7.3 et
+`main`, et le point d'accroche utilisé existe depuis 26.0.
+
+Réserve : `emailTemplate` est un SPI interne (Keycloak logue un `KC-SERVICES0047` à ce sujet).
+Rien ne garantit contractuellement sa stabilité ; il faut donc refaire tourner le banc d'essai
+ci-dessous à chaque montée de version majeure.
 
 Le provider s'enregistre sous l'id `freemarker` avec un `order()` supérieur : il remplace
 donc le provider d'emails par défaut sans aucune option de sélection à poser.
