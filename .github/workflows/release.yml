@@ -81,7 +81,7 @@ jobs:
     steps:
       # No rebuild: the jar published is the very one the matrix ran against.
       - name: Download the jar CI built and tested
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: provider-jar
           path: dist
